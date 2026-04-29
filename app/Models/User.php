@@ -46,4 +46,16 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function resolveLoginCredentials($request): array
+    {
+        // Ambil input username atau email (biar fleksibel)
+        $login = $request->input('username') ?? $request->input('email');
+        
+        return [
+            // Cek apakah input adalah email atau username
+            filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username' => $login,
+            'password' => $request->input('password'),
+        ];
+    }
 }
