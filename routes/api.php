@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ContentController;
+use App\Http\Controllers\Api\ChatController;
 
 // Prefix versioning biar gampang maintenance
 Route::prefix('v1')->group(function () {
@@ -16,4 +17,7 @@ Route::prefix('v1')->group(function () {
 
     // Peta Interaktif
     Route::get('/map-markers', [ContentController::class, 'mapMarkers']);
+
+    // chat patruk
+    Route::post('/chat', [ChatController::class, 'chat']);
 });

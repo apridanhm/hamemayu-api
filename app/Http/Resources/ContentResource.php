@@ -29,6 +29,14 @@ class ContentResource extends JsonResource
             'cover_image' => $this->cover_image ?? asset('images/placeholder.jpg'),
             'status' => $this->status,
             'created_at' => $this->created_at?->toISOString(),
+
+            'virtual_tour' => $this->street_view_id && $this->lat && $this->lng 
+            ? [
+                'panorama_id' => $this->street_view_id,
+                'embed_url' => "https://www.google.com/maps/embed?pb=!4m14!1m13!4m12!1m3!1d3953!2d" . number_format($this->lng, 6) . "!3d" . number_format($this->lat, 6) . "!2m1!1s{$this->street_view_id}!3m8!1m2!1d" . number_format($this->lat, 6) . "!2d" . number_format($this->lng, 6) . "!3m4!1s2!1s0!8m2!3d" . number_format($this->lat, 6) . "!4d" . number_format($this->lng, 6),
+                'google_maps_url' => $this->google_maps_url,
+            ] 
+            : null,
         ];
     }
 }

@@ -13,7 +13,9 @@ class Content extends Model
     protected $fillable = [
         'category_id', 'title', 'slug', 'excerpt', 'content',
         'lat', 'lng', 'opening_hours', 'ticket_price',
-        'cover_image', 'is_featured', 'status'
+        'cover_image', 'is_featured', 'status',
+        'street_view_id',
+        'google_maps_url',
     ];
 
     protected $casts = [

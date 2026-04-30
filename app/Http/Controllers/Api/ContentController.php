@@ -50,13 +50,28 @@ class ContentController extends Controller
     }
 
     // GET /api/v1/map-markers (khusus Leaflet/Peta, ringan)
-    public function mapMarkers()
+    public function mapMarkers(Request $request)
     {
-        return Cache::remember('api_map_markers', 3600, function () {
-            return Content::published()
-                ->whereNotNull('lat')
-                ->whereNotNull('lng')
-                ->with('category') // Eager load category
+        $query = Content::published()
+            ->whereNotNull('lat')
+            ->whereNotNull('lng');
+    
+        // Tambah filter kategori
+        if ($request->has('category')) {
+            $query->whereHas('category', function($q) use ($request) {
+                $q->where('slug', $request->category);
+            });
+        }
+    
+        // Tambah filter type
+        if ($request->has('type')) {
+            $query->whereHas('category', function($q) use ($request) {
+                $q->where('type', $request->type);
+            });
+        }
+    
+        return Cache::remember('api_map_markers_' . md5(json_encode($request->all())), 3600, function () use ($query) {
+            return $query->with('category')
                 ->get(['id', 'title', 'slug', 'lat', 'lng', 'category_id'])
                 ->map(fn($item) => [
                     'id' => $item->id,
@@ -64,7 +79,8 @@ class ContentController extends Controller
                     'slug' => $item->slug,
                     'lat' => $item->lat,
                     'lng' => $item->lng,
-                    'category' => $item->category?->name ?? 'Umum', // Null-safe
+                    'category' => $item->category?->name ?? 'Umum',
+                    'category_slug' => $item->category?->slug,
                 ]);
         });
     }

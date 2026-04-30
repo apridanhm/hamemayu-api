@@ -30,6 +30,8 @@ class ContentSeeder extends Seeder
                 'cover_image' => 'https://images.unsplash.com/photo-1596401057633-565652b50f4e?w=800',
                 'is_featured' => true,
                 'status' => 'published',
+                'street_view_id' => '!1m2!1s0x2e7a8b3c4d5e6f7:0x1234567890abcdef!2m1!1sKeraton+Yogyakarta',
+                'google_maps_url' => 'https://maps.app.goo.gl/keraton-yogya',
             ],
             // 2. Candi Prambanan
             [
@@ -45,6 +47,8 @@ class ContentSeeder extends Seeder
                 'cover_image' => 'https://images.unsplash.com/photo-1555400038-63f5ba517a47?w=800',
                 'is_featured' => true,
                 'status' => 'published',
+                'street_view_id' => '!1m2!1s0x2e7a8b3c4d5e6f7:0x1234567890abcdef!2m1!1sKeraton+Yogyakarta',
+                'google_maps_url' => 'https://maps.app.goo.gl/keraton-yogya',
             ],
             // 3. Taman Sari
             [
@@ -60,6 +64,8 @@ class ContentSeeder extends Seeder
                 'cover_image' => 'https://images.unsplash.com/photo-1583531254560-6468b3aa596c?w=800',
                 'is_featured' => false,
                 'status' => 'published',
+                'street_view_id' => '!1m2!1s0x2e7a8b3c4d5e6f7:0x1234567890abcdef!2m1!1sKeraton+Yogyakarta',
+                'google_maps_url' => 'https://maps.app.goo.gl/keraton-yogya',
             ],
             // 4. Batik Yogyakarta
             [
@@ -75,6 +81,8 @@ class ContentSeeder extends Seeder
                 'cover_image' => 'https://images.unsplash.com/photo-1610189012906-4f2e7910e6b8?w=800',
                 'is_featured' => false,
                 'status' => 'published',
+                'street_view_id' => '!1m2!1s0x2e7a8b3c4d5e6f7:0x1234567890abcdef!2m1!1sKeraton+Yogyakarta',
+                'google_maps_url' => 'https://maps.app.goo.gl/keraton-yogya',
             ],
             // 5. Gudeg Yuwono
             [
@@ -90,6 +98,8 @@ class ContentSeeder extends Seeder
                 'cover_image' => 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=800',
                 'is_featured' => true,
                 'status' => 'published',
+                'street_view_id' => '!1m2!1s0x2e7a8b3c4d5e6f7:0x1234567890abcdef!2m1!1sKeraton+Yogyakarta',
+                'google_maps_url' => 'https://maps.app.goo.gl/keraton-yogya',
             ],
             // 6. Angkringan Lik Man
             [
@@ -105,6 +115,8 @@ class ContentSeeder extends Seeder
                 'cover_image' => 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=800',
                 'is_featured' => false,
                 'status' => 'published',
+                'street_view_id' => '!1m2!1s0x2e7a8b3c4d5e6f7:0x1234567890abcdef!2m1!1sKeraton+Yogyakarta',
+                'google_maps_url' => 'https://maps.app.goo.gl/keraton-yogya',
             ],
             // 7. Pantai Parangtritis
             [
@@ -120,6 +132,8 @@ class ContentSeeder extends Seeder
                 'cover_image' => 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=800',
                 'is_featured' => true,
                 'status' => 'published',
+                'street_view_id' => '!1m2!1s0x2e7a8b3c4d5e6f7:0x1234567890abcdef!2m1!1sKeraton+Yogyakarta',
+                'google_maps_url' => 'https://maps.app.goo.gl/keraton-yogya',
             ],
             // 8. Malioboro
             [
@@ -135,6 +149,8 @@ class ContentSeeder extends Seeder
                 'cover_image' => 'https://images.unsplash.com/photo-1537956965359-7573183d1f57?w=800',
                 'is_featured' => false,
                 'status' => 'published',
+                'street_view_id' => '!1m2!1s0x2e7a8b3c4d5e6f7:0x1234567890abcdef!2m1!1sKeraton+Yogyakarta',
+                'google_maps_url' => 'https://maps.app.goo.gl/keraton-yogya',
             ],
         ];
 

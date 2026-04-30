@@ -99,6 +99,16 @@ class ContentResource extends Resource
                             ->url()
                             ->label('URL Gambar Utama')
                             ->helperText('Masukkan URL gambar dari Unsplash/Google'),
+
+                            TextInput::make('street_view_id')
+                            ->label('Google Street View Panorama ID')
+                            ->helperText('Contoh: !1m2!1s0x2e7a... (diambil dari URL Google Maps)')
+                            ->maxLength(255),
+                        
+                        TextInput::make('google_maps_url')
+                            ->label('Google Maps URL')
+                            ->url()
+                            ->helperText('URL fallback jika embed tidak tersedia'),
                     ])->columns(2),
     
                 // Status
