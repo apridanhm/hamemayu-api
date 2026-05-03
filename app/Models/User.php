@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Models\Wishlist;
 
 class User extends Authenticatable
 {
@@ -61,5 +62,10 @@ class User extends Authenticatable
             filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username' => $login,
             'password' => $request->input('password'),
         ];
+    }
+
+    public function wishlists()
+    {
+        return $this->hasMany(Wishlist::class);
     }
 }
