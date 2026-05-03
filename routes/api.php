@@ -6,9 +6,13 @@ use App\Http\Controllers\Api\ContentController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\WishlistController;
+use App\Http\Controllers\Api\ItineraryController;
 
 // Prefix versioning biar gampang maintenance
 Route::prefix('v1')->group(function () {
+    
+    // === PUBLIC ROUTES (No Auth Required) ===
+    
     // Kategori (6 Pilar)
     Route::get('/categories', [CategoryController::class, 'index']);
 
@@ -20,20 +24,36 @@ Route::prefix('v1')->group(function () {
     // Peta Interaktif
     Route::get('/map-markers', [ContentController::class, 'mapMarkers']);
 
-    // chat patruk
+    // Chat Petruk AI
     Route::post('/chat', [ChatController::class, 'chat']);
 
-
-    // route login user by google
+    // Google Auth Flow (public endpoints)
     Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogle']);
     Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
 
-    Route::post('/auth/logout', [AuthController::class, 'logout'])
-    ->middleware('auth:sanctum');
 
+    // === PROTECTED ROUTES (Require Login via Sanctum) ===
     Route::middleware('auth:sanctum')->group(function () {
-        Route::apiResource('/wishlist', WishlistController::class);
-    });
+        
+        // User Profile (BARU - untuk tampilkan data user login)
+        Route::get('/user/profile', function (\Illuminate\Http\Request $request) {
+            return response()->json([
+                'success' => true,
+                'data' => $request->user()
+            ]);
+        });
 
+        // Wishlist CRUD
+        Route::apiResource('/wishlist', WishlistController::class);
+
+        // Itinerary Planner (PINDAHKAN KE SINI - inside auth group!)
+        Route::post('/itinerary/generate', [ItineraryController::class, 'generate']);
+        Route::post('/itinerary/save', [ItineraryController::class, 'save']);
+        Route::get('/itinerary/history', [ItineraryController::class, 'history']);
+        Route::get('/itinerary/history/{itinerary}', [ItineraryController::class, 'historyDetail']);
+
+        // Logout
+        Route::post('/auth/logout', [AuthController::class, 'logout']);
+    });
 
 });

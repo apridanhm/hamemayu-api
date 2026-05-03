@@ -68,4 +68,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Wishlist::class);
     }
+
+    public function savedItineraries()
+    {
+        return $this->hasMany(SavedItinerary::class);
+    }
 }
