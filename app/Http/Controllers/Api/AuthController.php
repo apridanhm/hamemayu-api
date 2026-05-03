@@ -12,7 +12,8 @@ class AuthController extends Controller
 {
     public function redirectToGoogle()
     {
-        $url = Socialite::driver('google')->stateless()->redirect()->getTargetUrl();
+        // ubah ini wal biar dia klo logout nampilin pilihan akun lagi
+        $url = Socialite::driver('google')->stateless() ->with(['prompt' => 'select_account']) ->redirect()->getTargetUrl();
         return response()->json(['url' => $url]);
     }
 
