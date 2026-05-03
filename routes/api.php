@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ContentController;
 use App\Http\Controllers\Api\ChatController;
+use App\Http\Controllers\Api\AuthController;
 
 // Prefix versioning biar gampang maintenance
 Route::prefix('v1')->group(function () {
@@ -20,4 +21,12 @@ Route::prefix('v1')->group(function () {
 
     // chat patruk
     Route::post('/chat', [ChatController::class, 'chat']);
+
+
+    // route login user by google
+    Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogle']);
+    Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
+
+    Route::post('/auth/logout', [AuthController::class, 'logout'])
+    ->middleware('auth:sanctum');
 });
