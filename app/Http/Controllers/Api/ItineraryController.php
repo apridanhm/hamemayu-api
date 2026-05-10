@@ -287,6 +287,58 @@ class ItineraryController extends Controller
         ]);
     }
 
+
+        /**
+     * Update saved itinerary
+     * PUT /api/v1/itinerary/history/{id}
+     */
+    public function update(Request $request, $id)
+    {
+        $user = $request->user();
+        
+        // Cari itinerary + pastikan milik user ini
+        $itinerary = \App\Models\SavedItinerary::where('id', $id)
+            ->where('user_id', $user->id)
+            ->firstOrFail();
+        
+        // Validasi input
+        $validated = $request->validate([
+            'title' => 'nullable|string|max:255',
+            'days' => 'nullable|integer|min:1|max:7',
+            'interests' => 'nullable|array',
+            'interests.*' => 'string',
+            'budget_type' => 'nullable|string|in:hemat,menengah,premium',
+            'itinerary_data' => 'nullable|array',
+            'total_destinations' => 'nullable|integer',
+            'estimated_budget' => 'nullable|string',
+        ]);
+        
+        // Update fields yang dikirim (partial update)
+        foreach ($validated as $key => $value) {
+            if ($value !== null) {
+                // Khusus itinerary_data, kita merge biar nggak overwrite total
+                if ($key === 'itinerary_data' && is_array($value)) {
+                    $existing = $itinerary->itinerary_data ?? [];
+                    $itinerary->itinerary_data = array_merge($existing, $value);
+                } else {
+                    $itinerary->$key = $value;
+                }
+            }
+        }
+        
+        $itinerary->save();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Itinerary berhasil diupdate!',
+            'data' => [
+                'id' => $itinerary->id,
+                'title' => $itinerary->title,
+                'updated_at' => $itinerary->updated_at->toISOString(),
+            ],
+        ]);
+    }
+
     /**
      * Delete itinerary
      * DELETE /api/v1/itinerary/history/{id}

@@ -51,6 +51,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/itinerary/save', [ItineraryController::class, 'save']);
         Route::get('/itinerary/history', [ItineraryController::class, 'history']);
         Route::get('/itinerary/history/{itinerary}', [ItineraryController::class, 'historyDetail']);
+        Route::put('/itinerary/history/{id}', [ItineraryController::class, 'update']);
         Route::delete('/itinerary/history/{id}', [ItineraryController::class, 'destroy']);
 
         // Logout
