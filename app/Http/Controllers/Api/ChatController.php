@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Models\Content;
 
 class ChatController extends Controller
 {
@@ -20,6 +21,14 @@ class ChatController extends Controller
 
     public function chat(Request $request)
     {
+
+        \Log::info('🦇 BATMAN_TRAP_CHAT_START', [
+            'message' => $request->input('message'),
+            'has_user' => $request->user() ? true : false,
+            'user_id' => $request->user()?->id,
+            'auth_header' => $request->header('Authorization') ? 'present' : 'missing',
+        ]);
+
         $request->validate([
             'message' => 'required|string|max:1000',
             'session_id' => 'nullable|string',
@@ -28,6 +37,19 @@ class ChatController extends Controller
             'area' => 'nullable|string|max:100',
         ]);
 
+        // === MANUAL OPTIONAL AUTH VIA SANCTUM ===
+        // Cek apakah user mengirim token, kalau iya coba resolve user-nya
+        $user = null;
+        if ($request->bearerToken()) {
+            $token = \Laravel\Sanctum\PersonalAccessToken::findToken($request->bearerToken());
+            if ($token && $token->tokenable instanceof \App\Models\User) {
+                $user = $token->tokenable;
+                // Optional: update last_used_at biar token nggak expired
+                $token->update(['last_used_at' => now()]);
+            }
+        }
+        // === END MANUAL AUTH ===
+
         $message = $request->input('message');
         $sessionId = $request->input('session_id', 'guest');
         $cacheKey = "petruk_chat_{$sessionId}_" . md5($message);
@@ -35,18 +57,17 @@ class ChatController extends Controller
         $userLat = $request->input('lat');
         $userLng = $request->input('lng');
         $userArea = $request->input('area');
+        //$user = $request->user(); // Ambil user yang login (penting untuk wishlist)
 
-        // ✅ FIX: Cek vague query DULU sebelum validasi scope
+        // FIX: Cek vague query DULU sebelum validasi scope
         if ($this->isVagueLocationQuery($message) && !$userLat && !$userLng && !$userArea) {
             $response = "Kamu lagi di area mana, Mas/Mbak? Malioboro, Keraton, Prambanan, atau mana? Nanti aku bantu rekomendasiin yang terdekat! 😊";
             Cache::put($cacheKey, $response, 120);
             return $this->formatResponse($response, $message);
         }
 
-        // Cek apakah lokasi user di Yogyakarta (jika ada koordinat)
+        // Cek apakah lokasi user di Yogyakarta
         $isInJogja = $this->isLocationInYogyakarta($userLat, $userLng);
-
-        // ✅ FIX: Jika vague query + travel keyword + ada lokasi, anggap on-topic
         $isTravelQuery = $this->isTravelRelatedQuery($message);
         $isOnTopic = $isInJogja || $this->isYogyakartaRelated($message) || ($isTravelQuery && $isInJogja);
 
@@ -56,7 +77,112 @@ class ChatController extends Controller
             return $this->formatResponse($response, $message);
         }
 
-        // Cek cache
+        // ==========================================
+        // BARU: Handle Wishlist Intent (Prioritas Tinggi)
+        // ==========================================
+        // Cek intent SEBELUM cache, karena simpan wishlist itu action yang harus diproses real-time
+        $intent = $this->detectIntent($message, [
+            'pending_action' => session("chat_pending_action_{$user?->id}"),
+            'pending_place_id' => session("chat_pending_place_id_{$user?->id}"),
+            'pending_place_name' => session("chat_pending_place_name_{$user?->id}"),
+        ]);
+
+        // 1. Handle: User minta simpan ke wishlist (misal: "Simpan Gudeg Yuwono")
+        if ($intent['intent'] === 'add_to_wishlist' && $user) {
+            $place = $intent['place'];
+
+            // === DEBUG LOGGING ===
+            \Log::info('🎯 WISHLIST_BLOCK_ENTERED', [
+                'user_id' => $user->id,
+                'intent' => $intent,
+                'place' => $place,
+            ]);
+            
+            if ($place && isset($place['id'])) {
+                // Simpan ke database (firstOrCreate biar aman kalau udah ada)
+                \App\Models\Wishlist::firstOrCreate(
+                    ['user_id' => $user->id, 'content_id' => $place['id']],
+                    ['notes' => 'Ditambah via chat Petruk AI', 'priority' => 2]
+                );
+                
+                // Clear session context
+                session()->forget([
+                    "chat_pending_action_{$user->id}",
+                    "chat_pending_place_id_{$user->id}",
+                    "chat_pending_place_name_{$user->id}",
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'bot_name' => 'Petruk',
+                        'message' => "✅ **{$place['title']}** sudah kula simpan ke wishlist! 🎉\n\nMau kula rekomendasikan tempat lain, atau mau kula buatkan itinerary dari wishlist?",
+                        'timestamp' => now()->toISOString(),
+                        'suggestions' => [
+                            "Lihat detail {$place['title']}",
+                            "Tambahkan tempat lain ke wishlist",
+                            "Buatkan itinerary dari wishlist",
+                        ],
+                        'action' => 'added_to_wishlist',
+                        'content' => ['id' => $place['id'], 'title' => $place['title']],
+                    ],
+                ]);
+            }
+            
+            // Kalau nama tempat nggak dikenali
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'bot_name' => 'Petruk',
+                    'message' => "Maaf Mas/Mbak, kula kurang paham tempat mana yang mau disimpen. Coba sebutin nama lengkapnya sesuai yang ada di app ya? 😊",
+                    'timestamp' => now()->toISOString(),
+                    'suggestions' => ["Lihat rekomendasi lagi", "Tulis nama tempat lengkap"],
+                ],
+            ]);
+        }
+
+        // 2. Handle: User konfirmasi simpan (misal: jawab "iya" setelah ditawari)
+        if ($intent['intent'] === 'confirm_wishlist' && $user && !empty($intent['place']['id'])) {
+            $placeId = $intent['place']['id'];
+            $placeTitle = $intent['place']['title'] ?? 'Tempat ini';
+            
+            // Cari detail content untuk validasi akhir
+            $content = Content::find($placeId);
+            
+            if ($content) {
+                \App\Models\Wishlist::firstOrCreate(
+                    ['user_id' => $user->id, 'content_id' => $content->id],
+                    ['notes' => 'Ditambah via chat Petruk AI (konfirmasi)', 'priority' => 2]
+                );
+                
+                session()->forget([
+                    "chat_pending_action_{$user->id}",
+                    "chat_pending_place_id_{$user->id}",
+                    "chat_pending_place_name_{$user->id}",
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'bot_name' => 'Petruk',
+                        'message' => "✅ **{$placeTitle}** sudah kula simpan ke wishlist! 🎉\n\nMau kula tambahkan tempat lain, atau langsung kula buatkan itinerary?",
+                        'timestamp' => now()->toISOString(),
+                        'suggestions' => [
+                            "Tambahkan tempat lain",
+                            "Buatkan itinerary dari wishlist",
+                            "Lihat wishlist saya",
+                        ],
+                        'action' => 'added_to_wishlist',
+                        'content' => ['id' => $content->id, 'title' => $content->title],
+                    ],
+                ]);
+            }
+        }
+        // ==========================================
+        // 🔚 Akhir Logic Wishlist
+        // ==========================================
+
+        // Cek cache untuk response biasa (jika bukan action wishlist)
         $response = Cache::get($cacheKey);
         if ($response) {
             return $this->formatResponse($response, $message);
@@ -72,7 +198,32 @@ class ChatController extends Controller
             }
 
             $aiResponse = $this->callGroqAPI($message, $locationContext);
+            
             if ($aiResponse && $this->isResponseOnTopic($aiResponse)) {
+                // ==========================================
+                // BARU: Tawarkan Wishlist jika AI merekomendasikan tempat
+                // ==========================================
+                if ($user && preg_match('/(gudeg|candi|pantai|museum|hotel|penginapan|kuliner|wisata)/i', $message)) {
+                    // Coba extract nama tempat pertama dari response AI untuk ditawarkan
+                    // Kita pakai regex sederhana untuk menangkap nama setelah "Lokasi:"
+                    if (preg_match('/Lokasi:\s*\[?([^\]\n\r\.]+?)(?:\]|\.|$)/iu', $aiResponse, $matches)) {
+                        $offeredPlaceName = trim($matches[1], " []");
+                        $offeredPlace = $this->extractPlaceNameFromDB($offeredPlaceName);
+                        
+                        if ($offeredPlace) {
+                            // Simpan ke session untuk konteks jawaban "iya" nanti
+                            session([
+                                "chat_pending_action_{$user->id}" => 'offer_wishlist',
+                                "chat_pending_place_id_{$user->id}" => $offeredPlace['id'],
+                                "chat_pending_place_name_{$user->id}" => $offeredPlace['title'],
+                            ]);
+                            
+                            // Tambahkan kalimat penawaran di akhir response AI
+                            $aiResponse .= "\n\n_Mau kula simpan **{$offeredPlace['title']}** ke wishlist Mas/Mbak? Cukup balas 'iya' atau 'simpan' 😊_";
+                        }
+                    }
+                }
+                
                 Cache::put($cacheKey, $aiResponse, 3600);
                 return $this->formatResponse($aiResponse, $message);
             }
@@ -255,7 +406,7 @@ PROMPT;
     {
         $mapsLink = null;
         
-        // ✅ FIX: Regex fleksibel - match dengan atau tanpa kurung siku
+        // FIX: Regex fleksibel - match dengan atau tanpa kurung siku
         // Pattern: "Lokasi:" + optional whitespace + optional [ + capture name + optional ] or end of string
         if (preg_match('/Lokasi:\s*\[?([^\]\n\r\.]+?)(?:\]|\.|$)/iu', $message, $matches)) {
             $placeName = trim($matches[1], " []");
@@ -287,4 +438,73 @@ PROMPT;
             'Penginapan budget dekat Tugu Jogja',
         ];
     }
+
+    /**
+     * Extract nama tempat dari pesan user secara dinamis dari Database
+     * Mengembalikan: ['id' => 1, 'title' => 'Gudeg Yuwono', 'slug' => 'gudeg-yuwono']
+     */
+    private function extractPlaceNameFromDB(string $message): ?array
+    {
+        // Ambil semua judul tempat yang published (di-cache 1 jam biar ringan)
+        $places = Cache::remember('chat_place_titles', 3600, function () {
+            return Content::where('status', 'published')
+                ->get(['id', 'title', 'slug']);
+        });
+
+        $messageLower = strtolower(trim($message));
+        $bestMatch = null;
+        $longestMatchLength = 0;
+
+        // Cari tempat yang namanya ada di dalam pesan user
+        foreach ($places as $place) {
+            $titleLower = strtolower($place->title);
+            
+            // Cek apakah nama tempat muncul di pesan user
+            if (str_contains($messageLower, $titleLower)) {
+                // Ambil yang paling panjang (biar "Gudeg Yuwono" menang atas "Gudeg")
+                if (strlen($titleLower) > $longestMatchLength) {
+                    $longestMatchLength = strlen($titleLower);
+                    $bestMatch = [
+                        'id' => $place->id,
+                        'title' => $place->title,
+                        'slug' => $place->slug,
+                    ];
+                }
+            }
+        }
+
+        return $bestMatch;
+    }
+
+    private function detectIntent(string $message, array $context = []): array
+    {
+        $lower = strtolower($message);
+        
+        // 1. Intent: Simpan ke wishlist
+        if (preg_match('/(simpan|tambah|masukin|save|add).*?(wishlist|favorit|simpanan)/i', $lower)) {
+            $place = $this->extractPlaceNameFromDB($message);
+            
+            return [
+                'intent' => 'add_to_wishlist',
+                'place' => $place, // Langsung dapat array ['id', 'title', 'slug']
+                'confidence' => $place ? 'high' : 'low'
+            ];
+        }
+        
+        // 2. Intent: Konfirmasi ("iya", "oke", "gas")
+        if (preg_match('/^(iya|yes|oke|gas|boleh|ayo|yuk|ok)/i', $lower) && ($context['pending_action'] ?? null) === 'offer_wishlist') {
+            return [
+                'intent' => 'confirm_wishlist',
+                'place' => [
+                    'id' => $context['pending_place_id'] ?? null,
+                    'title' => $context['pending_place_name'] ?? null,
+                ],
+            ];
+        }
+        
+        // 3. Intent: Rekomendasi biasa
+        return ['intent' => 'recommendation'];
+    }
+
+
 }

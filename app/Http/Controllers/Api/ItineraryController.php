@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Content;
 use Illuminate\Http\Request;
 use App\Models\SavedItinerary;
+use App\Models\Itinerary;
 
 class ItineraryController extends Controller
 {
@@ -285,4 +286,38 @@ class ItineraryController extends Controller
             ]
         ]);
     }
+
+    /**
+     * Delete itinerary
+     * DELETE /api/v1/itinerary/history/{id}
+     */
+    public function destroy(Request $request, $id)
+    {
+        // Gunakan model yang BENAR: SavedItinerary
+        $itinerary = \App\Models\SavedItinerary::find($id);
+
+        // Cek apakah data ada
+        if (!$itinerary) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Itinerary not found'
+            ], 404);
+        }
+
+        // Security: Pastikan user hanya bisa hapus punya sendiri
+        if ($itinerary->user_id !== $request->user()->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+
+        $itinerary->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Itinerary berhasil dihapus.'
+        ]);
+    }
+
 }
